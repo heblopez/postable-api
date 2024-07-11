@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace PostableApi.Models;
 
@@ -17,7 +18,9 @@ public class Post
     [Required]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    [JsonIgnore]
     public User? User { get; set; }
     
+    [JsonIgnore]
     public List<Like>? Likes { get; set; } 
 }
