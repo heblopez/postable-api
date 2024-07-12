@@ -21,7 +21,7 @@ public class PostsController: ControllerBase
     }
     
     [HttpGet]
-    public ActionResult<List<PostShowDto>> GetPosts([FromQuery] string? username, [FromQuery] string? orderBy, [FromQuery] string? order)
+    public ActionResult<List<ShowPostDto>> GetPosts([FromQuery] string? username, [FromQuery] string? orderBy, [FromQuery] string? order)
     {
         IQueryable<Post> allPosts = _context.Posts.Include(p => p.User).Include(p => p.Likes);
         
@@ -41,7 +41,7 @@ public class PostsController: ControllerBase
             sortedPosts = order != null && order.Equals("desc", StringComparison.CurrentCultureIgnoreCase) ? allPosts.OrderByDescending(p => p.CreatedAt) : allPosts.OrderBy(p => p.CreatedAt);
         }
 
-        var postsResponse = sortedPosts.Select(p => new PostShowDto
+        var postsResponse = sortedPosts.Select(p => new ShowPostDto
         {
             Id = p.Id,
             Content = p.Content,
@@ -54,7 +54,7 @@ public class PostsController: ControllerBase
     }
 
     [HttpGet("{id}")]
-    public ActionResult<PostShowDto> GetPostById(int id)
+    public ActionResult<ShowPostDto> GetPostById(int id)
     {
         var post = _context.Posts
             .Include(p => p.User)
@@ -66,7 +66,7 @@ public class PostsController: ControllerBase
             return NotFound();
         }
         
-        var postResponse = new PostShowDto
+        var postResponse = new ShowPostDto
         {
             Id = post.Id,
             Content = post.Content,
@@ -80,19 +80,19 @@ public class PostsController: ControllerBase
     
     [Authorize]
     [HttpPost]
-    [ProducesResponseType(typeof(PostShowDto), StatusCodes.Status201Created)]
-    public CreatedAtActionResult CreatePost([FromBody] PostCreateDto newPost)
+    [ProducesResponseType(typeof(ShowPostDto), StatusCodes.Status201Created)]
+    public CreatedAtActionResult CreatePost([FromBody] CreatePostDto newCreatePost)
     {
         var post = new Post
         {
             UserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!),
-            Content = newPost.Content
+            Content = newCreatePost.Content
         };
         
         _context.Posts.Add(post);
         _context.SaveChanges();
         
-        var postResponse = new PostShowDto
+        var postResponse = new ShowPostDto
         {
             Id = post.Id,
             Content = post.Content,
@@ -102,5 +102,38 @@ public class PostsController: ControllerBase
         };
         
         return CreatedAtAction(nameof(GetPostById), new {id = postResponse.Id}, postResponse);
+    }
+    
+    [Authorize]
+    [HttpPatch("{id}")]
+    public ActionResult<ShowPostDto> UpdatePost([FromBody] CreatePostDto postToUpdate, int id)
+    {
+        var post = _context.Posts
+            .Include(p => p.User).Include(post => post.Likes!)
+            .FirstOrDefault(p => p.Id == id);
+        
+        if (post == null)
+        {
+            return NotFound();
+        }
+        
+        if (post.UserId != int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!))
+        {
+            return Unauthorized("You are not authorized to edit this post. Only the author can edit their posts!");
+        }
+        
+        post.Content = postToUpdate.Content;
+        _context.SaveChanges();
+        
+        var postResponse = new ShowPostDto
+        {
+            Id = post.Id,
+            Content = post.Content,
+            CreatedAt = post.CreatedAt,
+            Username = User.FindFirstValue(JwtRegisteredClaimNames.PreferredUsername),
+            LikesCount = post.Likes!.Count
+        };
+        
+        return Ok(postResponse);
     }
 }

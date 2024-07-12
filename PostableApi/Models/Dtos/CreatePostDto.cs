@@ -1,6 +1,6 @@
 namespace PostableApi.Models.Dtos;
 
-public class PostCreateDto
+public class CreatePostDto
 {
     public string? Content { get; set; }
 }
