@@ -111,6 +111,41 @@ public class AuthController: ControllerBase
         return Ok(userResponse);
     }
     
+    [HttpPatch("me")]
+    public ActionResult<ShowUserDto> UpdateUser([FromBody] UpdateUserDto dataToUpdate)
+    {
+        if (User.Identity is { IsAuthenticated: false })
+        {
+            return Unauthorized("You are not authenticated! Please login first if you wish to update your profile info.");
+        }
+        
+        var user = _context.Users
+            .FirstOrDefault(u => u.Id == int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!));
+        
+        if (user == null)
+        {
+            return NotFound();
+        }
+        
+        user.Email = dataToUpdate.Email ?? user.Email;
+        user.FirstName = dataToUpdate.FirstName ?? user.FirstName;
+        user.LastName = dataToUpdate.LastName ?? user.LastName;
+        _context.SaveChanges();
+        
+        var userResponse = new ShowUserDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Role = user.Role,
+            CreatedAt = user.CreatedAt
+        };
+        
+        return Ok(userResponse);
+    }
+    
     public class UserLogin
     {
         public required string Username { get; set; }
