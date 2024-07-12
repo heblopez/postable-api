@@ -145,6 +145,33 @@ public class AuthController: ControllerBase
         
         return Ok(userResponse);
     }
+
+    [HttpDelete("me")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public ActionResult DeleteUser()
+    {
+        if (User.Identity is { IsAuthenticated: false })
+        {
+            return Unauthorized("You are not authenticated! Please login first if you wish to delete your account.");
+        }
+        
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        
+        var user = _context.Users
+            .FirstOrDefault(u => u.Id == userId);
+        
+        if (user == null)
+        {
+            return NotFound();
+        }
+
+        var userLikes = _context.Likes.Where(l => l.UserId == userId);
+        _context.Likes.RemoveRange(userLikes);
+        _context.Users.Remove(user);
+        _context.SaveChanges();
+        
+        return NoContent();
+    }
     
     public class UserLogin
     {
