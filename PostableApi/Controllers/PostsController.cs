@@ -1,3 +1,6 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PostableApi.Data;
@@ -18,7 +21,7 @@ public class PostsController: ControllerBase
     }
     
     [HttpGet]
-    public ActionResult<List<PostGetDto>> GetPosts([FromQuery] string? username, [FromQuery] string? orderBy, [FromQuery] string? order)
+    public ActionResult<List<PostShowDto>> GetPosts([FromQuery] string? username, [FromQuery] string? orderBy, [FromQuery] string? order)
     {
         IQueryable<Post> allPosts = _context.Posts.Include(p => p.User).Include(p => p.Likes);
         
@@ -38,7 +41,7 @@ public class PostsController: ControllerBase
             sortedPosts = order != null && order.Equals("desc", StringComparison.CurrentCultureIgnoreCase) ? allPosts.OrderByDescending(p => p.CreatedAt) : allPosts.OrderBy(p => p.CreatedAt);
         }
 
-        var postsResponse = sortedPosts.Select(p => new PostGetDto
+        var postsResponse = sortedPosts.Select(p => new PostShowDto
         {
             Id = p.Id,
             Content = p.Content,
@@ -49,13 +52,55 @@ public class PostsController: ControllerBase
         
         return Ok(postsResponse);
     }
-    
-    [HttpPost]
-    public ActionResult<Post> PostPost([FromBody] Post post)
+
+    [HttpGet("{id}")]
+    public ActionResult<PostShowDto> GetPostById(int id)
     {
+        var post = _context.Posts
+            .Include(p => p.User)
+            .Include(p => p.Likes)
+            .FirstOrDefault(p => p.Id == id);
+        
+        if (post == null)
+        {
+            return NotFound();
+        }
+        
+        var postResponse = new PostShowDto
+        {
+            Id = post.Id,
+            Content = post.Content,
+            CreatedAt = post.CreatedAt,
+            Username = post.User!.Username,
+            LikesCount = post.Likes!.Count
+        };
+
+        return Ok(postResponse);
+    }
+    
+    [Authorize]
+    [HttpPost]
+    [ProducesResponseType(typeof(PostShowDto), StatusCodes.Status201Created)]
+    public CreatedAtActionResult CreatePost([FromBody] PostCreateDto newPost)
+    {
+        var post = new Post
+        {
+            UserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!),
+            Content = newPost.Content
+        };
+        
         _context.Posts.Add(post);
         _context.SaveChanges();
-
-        return Ok(post);
+        
+        var postResponse = new PostShowDto
+        {
+            Id = post.Id,
+            Content = post.Content,
+            CreatedAt = post.CreatedAt,
+            Username = User.FindFirstValue(JwtRegisteredClaimNames.PreferredUsername),
+            LikesCount = 0
+        };
+        
+        return CreatedAtAction(nameof(GetPostById), new {id = postResponse.Id}, postResponse);
     }
 }
