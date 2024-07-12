@@ -136,4 +136,43 @@ public class PostsController: ControllerBase
         
         return Ok(postResponse);
     }
+    
+    [Authorize]
+    [HttpPost("{postId}/like")]
+    public ActionResult<ShowPostDto> LikePost(int postId)
+    {
+        var post = _context.Posts
+            .Include(p => p.Likes).Include(post => post.User!)
+            .FirstOrDefault(p => p.Id == postId);
+        
+        if (post == null)
+        {
+            return NotFound();
+        }
+        
+        if (post.Likes!.Any(l => l.UserId == int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!) && l.PostId == postId))
+        {
+            return BadRequest("You have already liked this post!");
+        }
+        
+        var like = new Like
+        {
+            UserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!),
+            PostId = postId
+        };
+        
+        _context.Likes.Add(like);
+        _context.SaveChanges();
+        
+        var postResponse = new ShowPostDto
+        {
+            Id = post.Id,
+            Content = post.Content,
+            CreatedAt = post.CreatedAt,
+            Username = post.User!.Username,
+            LikesCount = post.Likes!.Count
+        };
+        
+        return Ok(postResponse);
+    }
 }
