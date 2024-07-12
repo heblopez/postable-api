@@ -27,7 +27,7 @@ public class PostsController: ControllerBase
         
         if (!string.IsNullOrEmpty(username))
         {
-            allPosts = allPosts.Where(p => p.User!.Username == username);
+            allPosts = allPosts.Where(p => p.User != null && p.User.Username == username);
         }
         
         IOrderedQueryable<Post> sortedPosts;
@@ -162,6 +162,42 @@ public class PostsController: ControllerBase
         };
         
         _context.Likes.Add(like);
+        _context.SaveChanges();
+        
+        var postResponse = new ShowPostDto
+        {
+            Id = post.Id,
+            Content = post.Content,
+            CreatedAt = post.CreatedAt,
+            Username = post.User!.Username,
+            LikesCount = post.Likes!.Count
+        };
+        
+        return Ok(postResponse);
+    }
+    
+    [Authorize]
+    [HttpDelete("{postId}/like")]
+    public ActionResult<ShowPostDto> UnlikePost(int postId)
+    {
+        var post = _context.Posts
+            .Include(p => p.Likes).Include(post => post.User!)
+            .FirstOrDefault(p => p.Id == postId);
+        
+        if (post == null)
+        {
+            return NotFound();
+        }
+        
+        if (!post.Likes!.Any(l => l.UserId == int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!) && l.PostId == postId))
+        {
+            return BadRequest("Looks like you still did not like this post! It is not possible to unlike a post you have not liked!");
+        }
+        
+        var like = _context.Likes
+            .FirstOrDefault(l => l.UserId == int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!) && l.PostId == postId);
+        
+        _context.Likes.Remove(like!);
         _context.SaveChanges();
         
         var postResponse = new ShowPostDto
