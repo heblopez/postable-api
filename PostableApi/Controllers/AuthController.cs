@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using PostableApi.Data;
 using PostableApi.Models;
+using PostableApi.Models.Dtos;
 
 namespace PostableApi.Controllers;
 
@@ -77,6 +78,37 @@ public class AuthController: ControllerBase
     public IActionResult Logout()
     {
         return Ok(new {message = "User logged out successfully!"});
+    }
+    
+    [HttpGet("me")]
+    public ActionResult<ShowUserDto> GetCurrentUser()
+    {
+        if (User.Identity is { IsAuthenticated: false })
+        {
+            return Unauthorized("You are not authenticated! Please login first if you wish to view your profile info.");
+        }
+        
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        
+        var user = _context.Users.FirstOrDefault(u => u.Id == userId);
+        
+        if (user == null)
+        {
+            return NotFound();
+        }
+        
+        var userResponse = new ShowUserDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Role = user.Role,
+            CreatedAt = user.CreatedAt
+        };
+        
+        return Ok(userResponse);
     }
     
     public class UserLogin
