@@ -10,11 +10,11 @@ public class User
     
     [Required]
     [MaxLength(50)]
-    public string? Username { get; set; }
+    public required string Username { get; set; }
     
     [Required]
     [MaxLength(200)]
-    public string? Password { get; set; }
+    public required string Password { get; set; }
     
     [EmailAddress]
     [MaxLength(256)]

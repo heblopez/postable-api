@@ -34,7 +34,7 @@ public class PostsController: ControllerBase
 
         if (orderBy == "likesCount")
         {
-            sortedPosts = order != null && order.Equals("desc", StringComparison.CurrentCultureIgnoreCase) ? allPosts.OrderByDescending(p => p.Likes!.Count) : allPosts.OrderBy(p => p.Likes!.Count);
+            sortedPosts = order != null && order.Equals("desc", StringComparison.CurrentCultureIgnoreCase) ? allPosts.OrderByDescending(p => p.Likes.Count) : allPosts.OrderBy(p => p.Likes.Count);
         } 
         else
         {
@@ -47,7 +47,7 @@ public class PostsController: ControllerBase
             Content = p.Content,
             CreatedAt = p.CreatedAt,
             Username = p.User!.Username,
-            LikesCount = p.Likes!.Count
+            LikesCount = p.Likes.Count
         }).ToList();
         
         return Ok(postsResponse);
@@ -72,7 +72,7 @@ public class PostsController: ControllerBase
             Content = post.Content,
             CreatedAt = post.CreatedAt,
             Username = post.User!.Username,
-            LikesCount = post.Likes!.Count
+            LikesCount = post.Likes.Count
         };
 
         return Ok(postResponse);
@@ -85,7 +85,7 @@ public class PostsController: ControllerBase
     {
         var post = new Post
         {
-            UserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!),
+            UserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new InvalidOperationException()),
             Content = newCreatePost.Content
         };
         
@@ -109,7 +109,7 @@ public class PostsController: ControllerBase
     public ActionResult<ShowPostDto> UpdatePost([FromBody] CreatePostDto postToUpdate, int id)
     {
         var post = _context.Posts
-            .Include(p => p.User).Include(post => post.Likes!)
+            .Include(p => p.User).Include(post => post.Likes)
             .FirstOrDefault(p => p.Id == id);
         
         if (post == null)
@@ -117,7 +117,7 @@ public class PostsController: ControllerBase
             return NotFound();
         }
         
-        if (post.UserId != int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!))
+        if (post.UserId != int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new InvalidOperationException("User Id not found!")))
         {
             return Unauthorized("You are not authorized to edit this post. Only the author can edit their posts!");
         }
@@ -131,7 +131,7 @@ public class PostsController: ControllerBase
             Content = post.Content,
             CreatedAt = post.CreatedAt,
             Username = User.FindFirstValue(JwtRegisteredClaimNames.PreferredUsername),
-            LikesCount = post.Likes!.Count
+            LikesCount = post.Likes.Count
         };
         
         return Ok(postResponse);
@@ -142,7 +142,7 @@ public class PostsController: ControllerBase
     public ActionResult<ShowPostDto> LikePost(int postId)
     {
         var post = _context.Posts
-            .Include(p => p.Likes).Include(post => post.User!)
+            .Include(p => p.Likes).Include(post => post.User)
             .FirstOrDefault(p => p.Id == postId);
         
         if (post == null)
@@ -150,14 +150,16 @@ public class PostsController: ControllerBase
             return NotFound();
         }
         
-        if (post.Likes!.Any(l => l.UserId == int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!) && l.PostId == postId))
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new InvalidOperationException("User Id not found!"));
+        
+        if (post.Likes.Any(l => l.UserId == userId && l.PostId == postId))
         {
             return BadRequest("You have already liked this post!");
         }
         
         var like = new Like
         {
-            UserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!),
+            UserId = userId,
             PostId = postId
         };
         
@@ -170,7 +172,7 @@ public class PostsController: ControllerBase
             Content = post.Content,
             CreatedAt = post.CreatedAt,
             Username = post.User!.Username,
-            LikesCount = post.Likes!.Count
+            LikesCount = post.Likes.Count
         };
         
         return Ok(postResponse);
@@ -189,15 +191,17 @@ public class PostsController: ControllerBase
             return NotFound();
         }
         
-        if (!post.Likes!.Any(l => l.UserId == int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!) && l.PostId == postId))
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new InvalidOperationException("User Id not found!"));
+        
+        if (!post.Likes.Any(l => l.UserId == userId && l.PostId == postId))
         {
             return BadRequest("Looks like you still did not like this post! It is not possible to unlike a post you have not liked!");
         }
         
         var like = _context.Likes
-            .FirstOrDefault(l => l.UserId == int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!) && l.PostId == postId);
-        
-        _context.Likes.Remove(like!);
+            .FirstOrDefault(l => l.UserId == userId && l.PostId == postId);
+
+        if (like != null) _context.Likes.Remove(like);
         _context.SaveChanges();
         
         var postResponse = new ShowPostDto
@@ -206,7 +210,7 @@ public class PostsController: ControllerBase
             Content = post.Content,
             CreatedAt = post.CreatedAt,
             Username = post.User!.Username,
-            LikesCount = post.Likes!.Count
+            LikesCount = post.Likes.Count
         };
         
         return Ok(postResponse);

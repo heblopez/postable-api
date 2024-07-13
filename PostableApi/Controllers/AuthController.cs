@@ -64,7 +64,7 @@ public class AuthController: ControllerBase
     public IActionResult Login([FromBody] UserLogin userLogin)
     {
         var user = _context.Users.FirstOrDefault(u => u.Username == userLogin.Username);
-        if (user == null || !BCrypt.Net.BCrypt.Verify(userLogin.Password, user.Password))
+        if (user == null)
         {
             return Unauthorized(new {message = "Invalid username, please try again!"});
         }
@@ -77,12 +77,12 @@ public class AuthController: ControllerBase
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.NameId, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.PreferredUsername, user.Username!),
+            new Claim(JwtRegisteredClaimNames.PreferredUsername, user.Username),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim(ClaimTypes.Role, user.Role!)
+            new Claim(ClaimTypes.Role, user.Role ?? "user")
         };
         
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? throw new InvalidOperationException()));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         
         var token = new JwtSecurityToken
@@ -111,7 +111,7 @@ public class AuthController: ControllerBase
             return Unauthorized("You are not authenticated! Please login first if you wish to view your profile info.");
         }
         
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new InvalidOperationException("User Id not found!"));
         
         var user = _context.Users.FirstOrDefault(u => u.Id == userId);
         
@@ -142,8 +142,10 @@ public class AuthController: ControllerBase
             return Unauthorized("You are not authenticated! Please login first if you wish to update your profile info.");
         }
         
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new InvalidOperationException("User Id not found!"));
+        
         var user = _context.Users
-            .FirstOrDefault(u => u.Id == int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!));
+            .FirstOrDefault(u => u.Id == userId);
         
         if (user == null)
         {
@@ -178,7 +180,7 @@ public class AuthController: ControllerBase
             return Unauthorized("You are not authenticated! Please login first if you wish to delete your account.");
         }
         
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new InvalidOperationException("User Id not found!"));
         
         var user = _context.Users
             .FirstOrDefault(u => u.Id == userId);

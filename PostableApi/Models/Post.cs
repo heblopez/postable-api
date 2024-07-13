@@ -22,5 +22,5 @@ public class Post
     public User? User { get; set; }
     
     [JsonIgnore]
-    public List<Like>? Likes { get; set; } 
+    public List<Like> Likes { get; set; } = new List<Like>();
 }
