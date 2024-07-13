@@ -1,5 +1,7 @@
 # Evaluación Individual: Postable - RESTful API para Gestión de Posts
 
+- Enlace de API desplegada: https://postable-api.somee.com/swagger/index.html
+
 ### Objetivo
 
 Desarrollar una RESTful API para una red social que permita a los usuarios interactuar con publicaciones (Posts). Esta API debe ser capaz de manejar diferentes operaciones dependiendo de si el usuario está registrado o no.
