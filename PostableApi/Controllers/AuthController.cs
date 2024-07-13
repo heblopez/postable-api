@@ -23,18 +23,41 @@ public class AuthController: ControllerBase
     }
     
     [HttpPost("signup")]
-    public async Task<IActionResult> Register([FromBody] User user)
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    public async Task<ActionResult<ShowUserDto>> Signup([FromBody] CreateUserDto newUser)
     {
-        if (_context.Users.Any(u => u.Username == user.Username))
+        if (_context.Users.Any(u => u.Username == newUser.Username))
         {
             return BadRequest(new {message = "Username already exists!"});
         }
         
-        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(user.Password);
-        user.Password = hashedPassword;
+        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(newUser.Password);
+        newUser.Password = hashedPassword;
+        var user = new User
+        {
+            Username = newUser.Username,
+            Password = newUser.Password,
+            Email = newUser.Email,
+            FirstName = newUser.FirstName,
+            LastName = newUser.LastName,
+            Role = newUser.Role
+        };
+
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
-        return Ok(new {message = "User registered successfully!"});
+        
+        var newUserResponse = new ShowUserDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Role = user.Role,
+            CreatedAt = user.CreatedAt
+        };
+        
+        return newUserResponse;
     }
     
     [HttpPost("login")]
